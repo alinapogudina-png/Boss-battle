@@ -124,7 +124,7 @@
             </div>
             <div class="form-group flex-col">
                 <label class="checkbox-label" style="margin-top: 15px;">
-                    <input type="checkbox" id="useSound" checked onchange="debounceGenerate()"> Звуки по умолчанию (Вкл)
+                    <input type="checkbox" id="useSound" checked onchange="debounceGenerate()"> Звуки (Вкл)
                 </label>
             </div>
         </div>
@@ -155,18 +155,23 @@ https://i.postimg.cc/T3R7nny1/Untitled-design3.png</textarea>
 
         <h3>Логика Игры</h3>
         <div class="flex-row" style="align-items: center;">
-            <div class="form-group flex-col">
-                <label>Кол-во жизней (ошибок)</label>
+            <div class="form-group flex-col" style="flex: 0.8;">
+                <label>Жизни (ошибки)</label>
                 <input type="number" id="maxErrors" value="3" min="1" max="10" oninput="debounceGenerate()">
             </div>
             <div class="form-group flex-col">
                 <label class="checkbox-label" style="margin-top: 10px;">
-                    <input type="checkbox" id="useTimer" onchange="debounceGenerate()"> Включить таймер
+                    <input type="checkbox" id="useTimer" onchange="debounceGenerate()"> Таймер
                 </label>
             </div>
-            <div class="form-group flex-col">
-                <label>Время таймера (сек)</label>
+            <div class="form-group flex-col" style="flex: 0.8;">
+                <label>Время (сек)</label>
                 <input type="number" id="timerSeconds" value="15" min="3" max="60" oninput="debounceGenerate()">
+            </div>
+            <div class="form-group flex-col">
+                <label class="checkbox-label" style="margin-top: 10px;">
+                    <input type="checkbox" id="obfuscateCode" checked onchange="debounceGenerate()"> 🛡️ Защитить код
+                </label>
             </div>
         </div>
 
@@ -228,6 +233,7 @@ were|would be|am</textarea>
                 maxErrors: parseInt(document.getElementById('maxErrors').value) || 3,
                 useTimer: document.getElementById('useTimer').checked,
                 timerSeconds: parseInt(document.getElementById('timerSeconds').value) || 15,
+                obfuscate: document.getElementById('obfuscateCode').checked,
                 winMsg: document.getElementById('winMsg').value,
                 loseMsg: document.getElementById('loseMsg').value,
                 qRaw: document.getElementById('qData').value,
@@ -256,207 +262,8 @@ were|would be|am</textarea>
             if(conf.attackType === 'lightning') projStyles = 'filter: drop-shadow(0 0 15px #00ffff) hue-rotate(180deg) brightness(1.5);';
             if(conf.attackType === 'magic') projStyles = 'filter: drop-shadow(0 0 15px #00ff00) hue-rotate(90deg) brightness(1.5);';
 
-            const innerHTML = `<!DOCTYPE html>
-<html lang="${conf.lang.toLowerCase()}">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Caveat:wght@700&family=Creepster&family=Jura:wght@700&family=Montserrat:wght@600;800&family=Neucha&family=Oswald:wght@500;700&family=Russo+One&display=swap');
-    
-    :root {
-        --neon: ${conf.neonColor};
-        --text-col: ${conf.aColor};
-        --font: ${conf.aFont};
-        --q-size: ${conf.qSize};
-        --a-size: ${conf.aSize};
-        --hero-h: ${conf.heroSize};
-        --boss-h: ${conf.bossSize};
-    }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;}
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; font-family: var(--font); color: var(--text-col); letter-spacing: 1px;}
-    
-    #game-container {
-        position: absolute; inset: 0; width: 100%; height: 100%;
-        background-image: url('${conf.bgImg}'); background-size: cover; background-position: center;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-    }
-    .damage-overlay { position: absolute; inset: 0; background: red; opacity: 0; pointer-events: none; z-index: 99; transition: opacity 0.1s;}
-
-    /* --- СТАРТОВЫЙ ЭКРАН --- */
-    #select-screen { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 100; width: 100%; height: 100%; justify-content: flex-start; padding-top: 15vh; position: absolute;}
-    .select-title { font-size: clamp(40px, 7vw, 70px); text-shadow: 0 0 20px var(--neon); margin-bottom: 60px; text-align: center; font-weight: 800;}
-    
-    .heroes-grid { display: flex; gap: 50px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px; }
-    .hero-card { 
-        width: clamp(200px, 28vw, 300px); height: clamp(200px, 28vw, 300px); border-radius: 50%; border: 3px solid rgba(255,255,255,0.2);
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.8) 100%); display: flex; justify-content: center; align-items: center;
-        cursor: pointer; transition: 0.3s; overflow: hidden;
-    }
-    .hero-card img { width: 90%; height: 90%; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.8)); transition: 0.3s;}
-    
-    .hero-card:hover { border-color: var(--neon); box-shadow: 0 0 25px var(--neon); transform: translateY(-5px); }
-    .hero-card:hover img { transform: scale(1.1); }
-    .hero-card.selected { border-color: var(--neon) !important; box-shadow: 0 0 50px var(--neon), inset 0 0 30px rgba(255,255,255,0.5) !important; transform: scale(1.1); animation: float 2s infinite ease-in-out;}
-    
-    @keyframes float { 0%, 100% { transform: scale(1.1) translateY(0); } 50% { transform: scale(1.1) translateY(-10px); } }
-
-    .start-btn {
-        display: none; background: rgba(0,0,0,0.8); color: var(--neon); border: 2px solid var(--neon);
-        padding: 15px 50px; font-size: 28px; font-family: var(--font); font-weight: 800;
-        text-transform: uppercase; border-radius: 15px; cursor: pointer; transition: 0.3s;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8); animation: popIn 0.5s forwards; letter-spacing: 2px;
-    }
-    .start-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 40px var(--neon); }
-
-    /* --- ИГРОВОЙ ЭКРАН --- */
-    #battle-screen { display: none; width: 100%; height: 100%; position: relative;}
-    
-    /* HUD Игрока (Слева сверху) */
-    .hud-hero { 
-        position: absolute; top: 20px; left: 20px; display: flex; flex-direction: row; align-items: center; gap: 15px;
-        z-index: 10; background: rgba(0,0,0,0.6); padding: 10px 20px 10px 10px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.2);
-    }
-    .player-mini { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--neon); object-fit: cover; background: rgba(0,0,0,0.8); box-shadow: 0 0 15px var(--neon);}
-    .hearts-container { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;}
-    .heart { width: 35px; height: 35px; object-fit: contain; filter: drop-shadow(0 2px 4px #000); transition: 0.3s;}
-    .heart.lost { filter: grayscale(100%) opacity(0.3); transform: scale(0.8);}
-
-    /* HUD Босса + Звук (Справа сверху, исправлено) */
-    .hud-boss { 
-        position: absolute; top: 20px; right: 20px; 
-        display: flex; flex-direction: column; align-items: flex-end; 
-        z-index: 10; width: 220px; max-width: 30vw;
-    }
-    .boss-name { font-weight: 800; font-size: 14px; text-shadow: 0 2px 4px #000; margin-bottom: 5px; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;}
-    .hp-bar-bg { width: 100%; height: 16px; background: rgba(0,0,0,0.8); border: 2px solid #000; border-radius: 10px; overflow: hidden; box-shadow: 0 0 15px #000, inset 0 0 10px rgba(0,0,0,0.8);}
-    .hp-bar-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #8e44ad, #9b59b6); transition: width 0.5s ease-out; box-shadow: inset 0 2px 5px rgba(255,255,255,0.3);}
-    
-    .sound-toggle { 
-        margin-top: 10px; width: 36px; height: 36px; border-radius: 50%;
-        background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
-        cursor: pointer; font-size: 18px; transition: 0.3s; user-select: none;
-    }
-    .sound-toggle:hover { border-color: var(--neon); box-shadow: 0 0 10px var(--neon); transform: scale(1.1);}
-
-    /* Персонажи на Арене */
-    .arena-char { position: absolute; bottom: 5%; max-height: var(--hero-h); max-width: 40vw; object-fit: contain; filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transition: 0.1s;}
-    #hero-sprite { left: 5%; transform-origin: bottom center;}
-    
-    @keyframes hoverBoss { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-    .boss-wrapper { position: absolute; right: 5%; bottom: 5%; animation: hoverBoss 3.5s ease-in-out infinite; z-index: 5;}
-    #boss-sprite { max-height: var(--boss-h); max-width: 45vw; object-fit: contain; filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transition: 0.1s; transform-origin: bottom center; display: block;}
-    
-    @keyframes hitBoss { 0% { filter: brightness(3) sepia(1); transform: scale(0.95) rotate(-5deg); } 100% { filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transform: scale(1) rotate(0); } }
-    @keyframes hitHero { 0% { filter: brightness(1) sepia(1) hue-rotate(-50deg) saturate(5); transform: scale(0.95) rotate(5deg) translateX(-20px); } 100% { filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transform: scale(1) rotate(0) translateX(0); } }
-    
-    .boss-damaged { animation: hitBoss 0.5s ease; }
-    .hero-damaged { animation: hitHero 0.5s ease; }
-
-    /* Панель вопросов */
-    .quiz-panel { 
-        position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-        background: rgba(10, 20, 30, 0.85); border: 2px solid var(--neon); box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
-        border-radius: 20px; padding: 15px 25px; width: 90%; max-width: 450px; display: flex; flex-direction: column; align-items: center; z-index: 20;
-    }
-    .question-text { font-size: var(--q-size); font-weight: 800; text-align: center; margin-bottom: 15px; text-shadow: 0 2px 5px #000; line-height: 1.2;}
-    
-    /* Квиз */
-    .options-grid { display: flex; flex-direction: column; gap: 10px; width: 100%;}
-    .option-btn { 
-        background: rgba(255,255,255,0.05); color: var(--text-col); border: 1px solid rgba(255,255,255,0.3);
-        padding: 10px 15px; border-radius: 10px; font-family: var(--font); font-size: var(--a-size);
-        cursor: pointer; transition: 0.2s; text-align: left; position: relative; overflow: hidden; font-weight: 600; text-shadow: 0 1px 3px #000;
-    }
-    .option-btn:hover:not(:disabled) { border-color: var(--neon); background: rgba(255,255,255,0.15); box-shadow: 0 0 15px var(--neon); transform: translateX(5px);}
-    .option-btn.correct { background: rgba(46, 204, 113, 0.4) !important; border-color: #2ecc71 !important; box-shadow: 0 0 20px #2ecc71 !important; color: #fff;}
-    .option-btn.wrong { background: rgba(231, 76, 60, 0.4) !important; border-color: #e74c3c !important; box-shadow: 0 0 20px #e74c3c !important; color: #fff;}
-
-    /* Ввод слова */
-    .input-mode-container { display: flex; gap: 10px; width: 100%; justify-content: center; align-items: stretch;}
-    .word-input { 
-        flex: 1; padding: 12px 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3); 
-        background: rgba(0,0,0,0.6); color: #fff; font-family: var(--font); font-size: var(--a-size); 
-        text-align: center; outline: none; transition: 0.3s; font-weight: bold;
-    }
-    .word-input:focus { border-color: var(--neon); box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);}
-    .submit-btn { 
-        background: rgba(0,0,0,0.5); color: var(--neon); border: 2px solid var(--neon); 
-        padding: 0 25px; border-radius: 10px; cursor: pointer; font-family: var(--font); 
-        font-size: var(--a-size); font-weight: bold; transition: 0.3s;
-    }
-    .submit-btn:hover:not(:disabled) { background: var(--neon); color: #000; box-shadow: 0 0 15px var(--neon);}
-
-    /* Таймер */
-    .timer-container { width: 100%; height: 6px; background: rgba(0,0,0,0.8); border-radius: 3px; margin-bottom: 12px; overflow: hidden; display: ${conf.useTimer ? 'block' : 'none'}; box-shadow: inset 0 0 5px #000;}
-    .timer-bar { height: 100%; width: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width 1s linear, background-color 0.5s; }
-    .timer-bar.warning { background: #e74c3c; box-shadow: 0 0 15px #e74c3c; }
-
-    .projectile { position: fixed; width: 100px; height: 100px; object-fit: contain; z-index: 50; transition: all 0.4s linear; ${projStyles} }
-
-    /* ФИНАЛ */
-    #end-screen { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); flex-direction: column; align-items: center; justify-content: center; z-index: 200;}
-    .end-msg { font-size: clamp(40px, 8vw, 80px); font-weight: 800; text-align: center; text-shadow: 0 0 30px var(--neon); margin-bottom: 40px; line-height: 1.2; padding: 0 20px; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;}
-    .replay-btn {
-        background: #111; color: var(--neon); border: 3px solid var(--neon); border-radius: 12px;
-        padding: 15px 40px; font-family: var(--font); font-size: 24px; font-weight: 800; 
-        text-transform: uppercase; cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(0,0,0,0.8); letter-spacing: 1px;
-    }
-    .replay-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 40px var(--neon); transform: scale(1.05);}
-
-    @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-
-    .damage-text { position: absolute; font-size: 50px; font-weight: 900; color: #fff; text-shadow: 0 0 15px #ff0000, 3px 3px 0 #000; pointer-events: none; animation: floatUp 1s ease-out forwards; z-index: 60;}
-    @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-120px) scale(1.5); opacity: 0; } }
-    
-    .fw-particle { position: fixed; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; z-index: 9999; animation: shoot 1s ease-out forwards; }
-    @keyframes shoot { 0% { transform: translate(0,0) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; } }
-</style>
-</head>
-<body>
-
-<div id="game-container">
-    <div class="damage-overlay" id="dmg-overlay"></div>
-    
-    <div id="select-screen">
-        <div class="select-title">CHOOSE YOUR HERO</div>
-        <div class="heroes-grid" id="heroes-grid"></div>
-        <button class="start-btn" id="start-btn" onclick="startGame()">${conf.startBtn}</button>
-    </div>
-
-    <div id="battle-screen">
-        <div class="hud-hero">
-            <img src="" class="player-mini" id="player-avatar">
-            <div class="hearts-container" id="hearts-container"></div>
-        </div>
-        
-        <div class="hud-boss">
-            <div class="boss-name">BOSS HP</div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="boss-hp-bar"></div></div>
-            <div class="sound-toggle" id="sound-btn" onclick="toggleSound()">🔊</div>
-        </div>
-
-        <img src="" class="arena-char" id="hero-sprite">
-        
-        <div class="boss-wrapper">
-            <img src="${conf.bossImg}" id="boss-sprite">
-        </div>
-
-        <div class="quiz-panel">
-            <div class="timer-container"><div class="timer-bar" id="timer-bar"></div></div>
-            <div class="question-text" id="q-text"></div>
-            <div class="options-grid" id="options-grid"></div>
-        </div>
-    </div>
-
-    <div id="end-screen">
-        <div class="end-msg" id="end-msg"></div>
-        <button class="replay-btn" id="replay-btn">PLAY AGAIN</button>
-    </div>
-</div>
-
-<script>
+            // Игровая логика
+            const gameScript = `
     const dict = { 
         EN: { select: "CHOOSE YOUR HERO", replay: "START AGAIN", ok: "OK" }, 
         RU: { select: "ВЫБЕРИ ГЕРОЯ", replay: "ИГРАТЬ СНОВА", ok: "ОК" }, 
@@ -486,11 +293,11 @@ were|would be|am</textarea>
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     let audioCtx;
     
-    function toggleSound() {
+    window.toggleSound = function() {
         soundEnabled = !soundEnabled;
         document.getElementById('sound-btn').innerText = soundEnabled ? '🔊' : '🔇';
         if(soundEnabled && !audioCtx) audioCtx = new AudioContext();
-    }
+    };
 
     function playSound(type) {
         if(!soundEnabled) return;
@@ -521,7 +328,7 @@ were|would be|am</textarea>
     const heroes = ${JSON.stringify(conf.heroes)};
     heroes.forEach(url => {
         let div = document.createElement('div'); div.className = 'hero-card';
-        div.innerHTML = \`<img src="\${url}">\`;
+        div.innerHTML = '<img src="' + url + '">';
         div.onclick = () => {
             document.querySelectorAll('.hero-card').forEach(c => c.classList.remove('selected'));
             div.classList.add('selected'); selectedHero = url;
@@ -530,7 +337,7 @@ were|would be|am</textarea>
         hGrid.appendChild(div);
     });
 
-    function startGame() {
+    window.startGame = function() {
         if(soundEnabled && !audioCtx) audioCtx = new AudioContext();
         document.getElementById('select-screen').style.display = 'none';
         document.getElementById('end-screen').style.display = 'none';
@@ -541,7 +348,7 @@ were|would be|am</textarea>
         
         currentQ = 0; errors = 0; bossHP = bossMaxHP;
         updateHPBar(); renderHearts(); loadQuestion();
-    }
+    };
 
     function renderHearts() {
         const hc = document.getElementById('hearts-container'); hc.innerHTML = '';
@@ -692,7 +499,22 @@ were|would be|am</textarea>
             msg.innerText = "${conf.winMsg}"; msg.style.color = "var(--neon)"; msg.style.textShadow = "0 0 30px var(--neon)";
             fireworks(); fwId = setInterval(fireworks, 1500);
         }
-        document.getElementById('replay-btn').onclick = () => { clearInterval(fwId); startGame(); };
+        
+        // --- ИЗМЕНЕНИЯ ЗДЕСЬ: Возврат к экрану выбора ---
+        document.getElementById('replay-btn').onclick = () => { 
+            clearInterval(fwId); 
+            // Скрываем экраны битвы и конца игры
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('battle-screen').style.display = 'none';
+            
+            // Показываем стартовый экран выбора героя
+            document.getElementById('select-screen').style.display = 'flex';
+            
+            // Сбрасываем выбранного героя, чтобы заставить выбрать заново
+            document.querySelectorAll('.hero-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('start-btn').style.display = 'none';
+            selectedHero = "";
+        };
     }
 
     function fireworks() {
@@ -704,6 +526,162 @@ were|would be|am</textarea>
             document.body.appendChild(p); setTimeout(() => p.remove(), 1000);
         }
     }
+    `;
+
+            // Обфускация (Шифрование)
+            let finalScript = gameScript;
+            if (conf.obfuscate) {
+                // Превращаем код в Base64 с учетом кириллицы
+                const encodedJS = btoa(unescape(encodeURIComponent(gameScript)));
+                finalScript = `eval(decodeURIComponent(escape(atob('${encodedJS}'))));`;
+            }
+
+            const innerHTML = `<!DOCTYPE html>
+<html lang="${conf.lang.toLowerCase()}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Caveat:wght@700&family=Creepster&family=Jura:wght@700&family=Montserrat:wght@600;800&family=Neucha&family=Oswald:wght@500;700&family=Russo+One&display=swap');
+    
+    :root {
+        --neon: ${conf.neonColor};
+        --text-col: ${conf.aColor};
+        --font: ${conf.aFont};
+        --q-size: ${conf.qSize};
+        --a-size: ${conf.aSize};
+        --hero-h: ${conf.heroSize};
+        --boss-h: ${conf.bossSize};
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;}
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; font-family: var(--font); color: var(--text-col); letter-spacing: 1px;}
+    
+    #game-container {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        background-image: url('${conf.bgImg}'); background-size: cover; background-position: center;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .damage-overlay { position: absolute; inset: 0; background: red; opacity: 0; pointer-events: none; z-index: 99; transition: opacity 0.1s;}
+
+    #select-screen { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 100; width: 100%; height: 100%; justify-content: flex-start; padding-top: 15vh; position: absolute;}
+    .select-title { font-size: clamp(40px, 7vw, 70px); text-shadow: 0 0 20px var(--neon); margin-bottom: 60px; text-align: center; font-weight: 800;}
+    
+    .heroes-grid { display: flex; gap: 50px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px; }
+    .hero-card { width: clamp(200px, 28vw, 300px); height: clamp(200px, 28vw, 300px); border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.8) 100%); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.3s; overflow: hidden;}
+    .hero-card img { width: 90%; height: 90%; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.8)); transition: 0.3s;}
+    .hero-card:hover { border-color: var(--neon); box-shadow: 0 0 25px var(--neon); transform: translateY(-5px); }
+    .hero-card:hover img { transform: scale(1.1); }
+    .hero-card.selected { border-color: var(--neon) !important; box-shadow: 0 0 50px var(--neon), inset 0 0 30px rgba(255,255,255,0.5) !important; transform: scale(1.1); animation: float 2s infinite ease-in-out;}
+    @keyframes float { 0%, 100% { transform: scale(1.1) translateY(0); } 50% { transform: scale(1.1) translateY(-10px); } }
+
+    .start-btn { display: none; background: rgba(0,0,0,0.8); color: var(--neon); border: 2px solid var(--neon); padding: 15px 50px; font-size: 28px; font-family: var(--font); font-weight: 800; text-transform: uppercase; border-radius: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(0,0,0,0.8); animation: popIn 0.5s forwards; letter-spacing: 2px;}
+    .start-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 40px var(--neon); }
+
+    #battle-screen { display: none; width: 100%; height: 100%; position: relative;}
+    .hud-hero { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: row; align-items: center; gap: 15px; z-index: 10; background: rgba(0,0,0,0.6); padding: 10px 20px 10px 10px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.2);}
+    .player-mini { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--neon); object-fit: cover; background: rgba(0,0,0,0.8); box-shadow: 0 0 15px var(--neon);}
+    .hearts-container { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;}
+    .heart { width: 35px; height: 35px; object-fit: contain; filter: drop-shadow(0 2px 4px #000); transition: 0.3s;}
+    .heart.lost { filter: grayscale(100%) opacity(0.3); transform: scale(0.8);}
+
+    .hud-boss { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; z-index: 10; width: 220px; max-width: 30vw;}
+    .boss-name { font-weight: 800; font-size: 14px; text-shadow: 0 2px 4px #000; margin-bottom: 5px; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;}
+    .hp-bar-bg { width: 100%; height: 16px; background: rgba(0,0,0,0.8); border: 2px solid #000; border-radius: 10px; overflow: hidden; box-shadow: 0 0 15px #000, inset 0 0 10px rgba(0,0,0,0.8);}
+    .hp-bar-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #8e44ad, #9b59b6); transition: width 0.5s ease-out; box-shadow: inset 0 2px 5px rgba(255,255,255,0.3);}
+    
+    .sound-toggle { margin-top: 10px; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: 0.3s; user-select: none;}
+    .sound-toggle:hover { border-color: var(--neon); box-shadow: 0 0 10px var(--neon); transform: scale(1.1);}
+
+    .arena-char { position: absolute; bottom: 5%; max-height: var(--hero-h); max-width: 40vw; object-fit: contain; filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transition: 0.1s;}
+    #hero-sprite { left: 5%; transform-origin: bottom center;}
+    
+    @keyframes hoverBoss { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+    .boss-wrapper { position: absolute; right: 5%; bottom: 5%; animation: hoverBoss 3.5s ease-in-out infinite; z-index: 5;}
+    #boss-sprite { max-height: var(--boss-h); max-width: 45vw; object-fit: contain; filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transition: 0.1s; transform-origin: bottom center; display: block;}
+    
+    @keyframes hitBoss { 0% { filter: brightness(3) sepia(1); transform: scale(0.95) rotate(-5deg); } 100% { filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transform: scale(1) rotate(0); } }
+    @keyframes hitHero { 0% { filter: brightness(1) sepia(1) hue-rotate(-50deg) saturate(5); transform: scale(0.95) rotate(5deg) translateX(-20px); } 100% { filter: drop-shadow(0 20px 20px rgba(0,0,0,0.8)); transform: scale(1) rotate(0) translateX(0); } }
+    .boss-damaged { animation: hitBoss 0.5s ease; }
+    .hero-damaged { animation: hitHero 0.5s ease; }
+
+    .quiz-panel { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(10, 20, 30, 0.85); border: 2px solid var(--neon); box-shadow: 0 10px 30px rgba(0,0,0,0.8); border-radius: 20px; padding: 15px 25px; width: 90%; max-width: 450px; display: flex; flex-direction: column; align-items: center; z-index: 20;}
+    .question-text { font-size: var(--q-size); font-weight: 800; text-align: center; margin-bottom: 15px; text-shadow: 0 2px 5px #000; line-height: 1.2;}
+    
+    .options-grid { display: flex; flex-direction: column; gap: 10px; width: 100%;}
+    .option-btn { background: rgba(255,255,255,0.05); color: var(--text-col); border: 1px solid rgba(255,255,255,0.3); padding: 10px 15px; border-radius: 10px; font-family: var(--font); font-size: var(--a-size); cursor: pointer; transition: 0.2s; text-align: left; position: relative; overflow: hidden; font-weight: 600; text-shadow: 0 1px 3px #000;}
+    .option-btn:hover:not(:disabled) { border-color: var(--neon); background: rgba(255,255,255,0.15); box-shadow: 0 0 15px var(--neon); transform: translateX(5px);}
+    .option-btn.correct { background: rgba(46, 204, 113, 0.4) !important; border-color: #2ecc71 !important; box-shadow: 0 0 20px #2ecc71 !important; color: #fff;}
+    .option-btn.wrong { background: rgba(231, 76, 60, 0.4) !important; border-color: #e74c3c !important; box-shadow: 0 0 20px #e74c3c !important; color: #fff;}
+
+    .input-mode-container { display: flex; gap: 10px; width: 100%; justify-content: center; align-items: stretch;}
+    .word-input { flex: 1; padding: 12px 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.6); color: #fff; font-family: var(--font); font-size: var(--a-size); text-align: center; outline: none; transition: 0.3s; font-weight: bold;}
+    .word-input:focus { border-color: var(--neon); box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);}
+    .submit-btn { background: rgba(0,0,0,0.5); color: var(--neon); border: 2px solid var(--neon); padding: 0 25px; border-radius: 10px; cursor: pointer; font-family: var(--font); font-size: var(--a-size); font-weight: bold; transition: 0.3s;}
+    .submit-btn:hover:not(:disabled) { background: var(--neon); color: #000; box-shadow: 0 0 15px var(--neon);}
+
+    .timer-container { width: 100%; height: 6px; background: rgba(0,0,0,0.8); border-radius: 3px; margin-bottom: 12px; overflow: hidden; display: ${conf.useTimer ? 'block' : 'none'}; box-shadow: inset 0 0 5px #000;}
+    .timer-bar { height: 100%; width: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width 1s linear, background-color 0.5s; }
+    .timer-bar.warning { background: #e74c3c; box-shadow: 0 0 15px #e74c3c; }
+
+    .projectile { position: fixed; width: 100px; height: 100px; object-fit: contain; z-index: 50; transition: all 0.4s linear; ${projStyles} }
+
+    #end-screen { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); flex-direction: column; align-items: center; justify-content: center; z-index: 200;}
+    .end-msg { font-size: clamp(40px, 8vw, 80px); font-weight: 800; text-align: center; text-shadow: 0 0 30px var(--neon); margin-bottom: 40px; line-height: 1.2; padding: 0 20px; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;}
+    .replay-btn { background: #111; color: var(--neon); border: 3px solid var(--neon); border-radius: 12px; padding: 15px 40px; font-family: var(--font); font-size: 24px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(0,0,0,0.8); letter-spacing: 1px;}
+    .replay-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 40px var(--neon); transform: scale(1.05);}
+
+    @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .damage-text { position: absolute; font-size: 50px; font-weight: 900; color: #fff; text-shadow: 0 0 15px #ff0000, 3px 3px 0 #000; pointer-events: none; animation: floatUp 1s ease-out forwards; z-index: 60;}
+    @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-120px) scale(1.5); opacity: 0; } }
+    .fw-particle { position: fixed; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; z-index: 9999; animation: shoot 1s ease-out forwards; }
+    @keyframes shoot { 0% { transform: translate(0,0) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="damage-overlay" id="dmg-overlay"></div>
+    
+    <div id="select-screen">
+        <div class="select-title">CHOOSE YOUR HERO</div>
+        <div class="heroes-grid" id="heroes-grid"></div>
+        <button class="start-btn" id="start-btn" onclick="window.startGame()">START</button>
+    </div>
+
+    <div id="battle-screen">
+        <div class="hud-hero">
+            <img src="" class="player-mini" id="player-avatar">
+            <div class="hearts-container" id="hearts-container"></div>
+        </div>
+        
+        <div class="hud-boss">
+            <div class="boss-name">BOSS HP</div>
+            <div class="hp-bar-bg"><div class="hp-bar-fill" id="boss-hp-bar"></div></div>
+            <div class="sound-toggle" id="sound-btn" onclick="window.toggleSound()">🔊</div>
+        </div>
+
+        <img src="" class="arena-char" id="hero-sprite">
+        
+        <div class="boss-wrapper">
+            <img src="${conf.bossImg}" id="boss-sprite">
+        </div>
+
+        <div class="quiz-panel">
+            <div class="timer-container"><div class="timer-bar" id="timer-bar"></div></div>
+            <div class="question-text" id="q-text"></div>
+            <div class="options-grid" id="options-grid"></div>
+        </div>
+    </div>
+
+    <div id="end-screen">
+        <div class="end-msg" id="end-msg"></div>
+        <button class="replay-btn" id="replay-btn">PLAY AGAIN</button>
+    </div>
+</div>
+
+<script>
+${finalScript}
 <\/script>
 </body>
 </html>`;
